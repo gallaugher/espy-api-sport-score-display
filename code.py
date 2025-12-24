@@ -1,7 +1,11 @@
-# SPDX-FileCopyrightText: 2023 Liz Clark for Adafruit Industries
-# Modified for all-games ticker on two 64x64 panels
-#
-# SPDX-License-Identifier: MIT
+# Modified from the original Adafruit project by Liz Clark (aka BlitzCityDIY)
+# Original URL which contains great descriptions, helper code for logo extraction,
+# and files you can use for 3D printed brackets for the four 64x32 panels she uses
+# https://learn.adafruit.com/led-matrix-sports-scoreboard/overview
+# Modifications below by Prof. John Gallaugher to use two 64x64 panels & display
+# all games NFL, MLB, NHL, NBA, ESPN score-tracker-style.
+# Build video at: https://YouTube.com/@BuildWithProfG
+# Meant for educational purposes only. Logos are properties of respective teams / leagues
 
 import os
 import gc
@@ -23,39 +27,34 @@ import neopixel
 
 displayio.release_displays()
 
-# =============================================================================
-# CONFIGURATION
-# =============================================================================
-
+# SETUP
 # Font color for text on matrix
 font_color = 0xFFFFFF
 
-# Your timezone UTC offset and timezone name
+# Your timezone UTC offset and timezone name. US zones displayed below
 # EST = -5, EDT = -4, CST = -6, CDT = -5, MST = -7, MDT = -6, PST = -8, PDT = -7
 timezone_info = [-5, "EST"]
 
-# Sports and leagues to follow (must match your logo folder order)
+# Sports and leagues to follow (must match logo folder order)
+# Liz had MLS, but I removed that
 # team0_logos = NFL, team1_logos = MLB, team2_logos = NHL, team3_logos = NBA
 sport_names = ["football", "baseball", "hockey", "basketball"]
 sport_leagues = ["nfl", "mlb", "nhl", "nba"]
 logo_folders = ["team0_logos", "team1_logos", "team2_logos", "team3_logos"]
 
-# How often to refresh data from ESPN API (seconds)
+# Time between ESPN API calls for score refresh: (seconds)
 fetch_interval = 300  # 5 minutes
 
-# How long to display each game (seconds)
+# Time to display each game (seconds)
 display_interval = 5  # 5 seconds per game
 
-# =============================================================================
-# HARDWARE SETUP - Two 64x64 panels side by side
-# =============================================================================
-
+# Setup below is for two 64x64 HUB75 LED Matrix Displays
 pixel = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.3, auto_write=True)
 
 base_width = 64
 base_height = 64  # 64-row panels
 chain_across = 2  # Two panels side by side
-tile_down = 1  # Not tiled vertically
+tile_down = 1  # Online one tile tall, not one on top of the other
 
 DISPLAY_WIDTH = base_width * chain_across  # 128
 DISPLAY_HEIGHT = base_height * tile_down  # 64
@@ -89,9 +88,8 @@ matrix = rgbmatrix.RGBMatrix(
 
 display = framebufferio.FramebufferDisplay(matrix)
 
-# =============================================================================
-# WIFI CONNECTION
-# =============================================================================
+# Connect to WiFi - IMPORTANT Requires properly configured settings.toml file for your WiFi!!!
+# No API key required, though.
 
 print("Connecting to WiFi...")
 wifi.radio.connect(os.getenv("CIRCUITPY_WIFI_SSID"), os.getenv("CIRCUITPY_WIFI_PASSWORD"))
@@ -101,23 +99,15 @@ context = ssl.create_default_context()
 pool = socketpool.SocketPool(wifi.radio)
 requests = adafruit_requests.Session(pool, context)
 
-# =============================================================================
-# BUILD API URLs
-# =============================================================================
-
+# Builds URL used for API call to include all leagues in sports_leagues list.
 SPORT_URLS = []
 for i in range(len(sport_leagues)):
     url = f"https://site.api.espn.com/apis/site/v2/sports/{sport_names[i]}/{sport_leagues[i]}/scoreboard"
     SPORT_URLS.append(url)
     print(f"Added URL for {sport_leagues[i].upper()}")
 
-
-# =============================================================================
-# HELPER FUNCTIONS
-# =============================================================================
-
+# Date/Time conversion - Convert UTC time from ESPN API to local timezone display format.
 def convert_date_format(date_str, tz_info):
-    """Convert UTC time from ESPN API to local timezone display format."""
     try:
         year = int(date_str[0:4])
         month = int(date_str[5:7])
@@ -143,17 +133,15 @@ def convert_date_format(date_str, tz_info):
         print(f"Date conversion error: {e}")
         return "TBD"
 
-
+# Get the logo folder index for a league.
 def get_league_index(league):
-    """Get the logo folder index for a league."""
     try:
         return sport_leagues.index(league)
     except ValueError:
         return 0
 
-
+# Fetch all games from all leagues and return a list of game data
 def fetch_all_games():
-    """Fetch all games from all leagues and return a list of game data."""
     all_games = []
 
     for league_idx, url in enumerate(SPORT_URLS):
@@ -188,9 +176,8 @@ def fetch_all_games():
     print(f"Total games loaded: {len(all_games)}")
     return all_games
 
-
+# Parse a single game event into a display-friendly dictionary.
 def parse_game(event, league_idx):
-    """Parse a single game event into a display-friendly dictionary."""
     try:
         competition = event["competitions"][0]
         competitors = competition["competitors"]
@@ -242,9 +229,8 @@ def parse_game(event, league_idx):
         print(f"Parse error: {e}")
         return None
 
-
+# Build a displayio Group for a single game
 def build_game_display(game):
-    """Build a displayio Group for a single game."""
     group = displayio.Group()
 
     league_idx = game["league_idx"]
@@ -325,9 +311,8 @@ def build_game_display(game):
 
     return group
 
-
+# Display a startup message
 def show_startup():
-    """Display a startup message."""
     group = displayio.Group()
 
     title = adafruit_display_text.label.Label(
@@ -350,9 +335,8 @@ def show_startup():
 
     display.root_group = group
 
-
+# Display a message if no games are found
 def show_no_games():
-    """Display a message when no games are found."""
     group = displayio.Group()
 
     msg = adafruit_display_text.label.Label(
@@ -365,11 +349,6 @@ def show_no_games():
     group.append(msg)
 
     display.root_group = group
-
-
-# =============================================================================
-# MAIN PROGRAM
-# =============================================================================
 
 print("=" * 40)
 print("Sports Ticker Starting")
