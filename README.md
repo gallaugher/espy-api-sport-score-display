@@ -17,3 +17,4 @@ Hardware:
 I also connected the two displays with 1/2" foam core board that I cut & attached using heavy duty velcro tape.
 
 Below is an example of the wiring. More in the video lesson on the channel link, above
+![IMG_3646](https://github.com/user-attachments/assets/d09c630b-b82a-436f-acbc-576884cfb2b8)
